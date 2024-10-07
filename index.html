@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retail Store Purchase List</title>
+    <style>
+                body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        input[type="text"] {
+            padding: 6px;
+            margin: 4px;
+        }
+        .form-section {
+            margin-bottom: 20px;
+        }
+        button {
+            margin: 5px;
+            padding: 10px;
+        }
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        @media print {
+            .no-print {
+                display: none;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <button class = "no-print" onclick="deleteAllRowsAndColumns()">Delete All Rows and Columns</button>
+
+    <div class="form-section no-print">
+        <label for="item">Item Name:</label>
+        <input type="text" id="item" placeholder="Enter item (e.g., School Shoes)">
+        <label for="quantity">Quantity:</label>
+        <input type="text" id="quantity" placeholder="Enter quantity (e.g., 100)">
+        <button onclick="addItem()">Add Item</button>
+    </div>
+
+    <div class="form-section no-print">
+        <label for="columnName">New Column Name:</label>
+        <input type="text" id="columnName" placeholder="Enter new column name">
+        <button onclick="addColumn()">Add Column</button>
+    </div>
+
+    <table id="itemTable">
+        <thead>
+            <tr>
+                <th>Item Name</th>
+                <th>Quantity</th>
+                <th class="no-print">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <div class="actions no-print">
+        <button onclick="printTable()">Print List</button>
+        <button onclick="deleteColumn()">Delete Last Column</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTableFromLocalStorage();  // Load data on page load
+        });
+
+        function addItem() {
+            const item = document.getElementById("item").value;
+            const quantity = document.getElementById("quantity").value;
+
+            if (item === "" || quantity === "") {
+                alert("Please enter both item name and quantity.");
+                return;
+            }
+
+            const table = document.getElementById("itemTable").getElementsByTagName("tbody")[0];
+            const newRow = table.insertRow();
+
+            const cell1 = newRow.insertCell(0);
+            const cell2 = newRow.insertCell(1);
+            const cell3 = newRow.insertCell(2);
+
+            cell1.textContent = item;
+            cell2.textContent = quantity;
+            cell3.innerHTML = '<button onclick="deleteRow(this)">Delete</button>';
+
+            // Add empty cells for new columns
+            const headerLength = document.getElementById("itemTable").rows[0].cells.length;
+            for (let i = 3; i < headerLength; i++) {
+                const newCell = newRow.insertCell(i);
+                newCell.innerHTML = `<input style="border: none; padding: 0; margin: 0;" type="text" placeholder="Enter value">`;
+            }
+
+            saveTableToLocalStorage();  // Save data after adding an item
+
+            document.getElementById("item").value = "";
+            document.getElementById("quantity").value = "";
+        }
+
+        function deleteRow(button) {
+            const row = button.parentNode.parentNode;
+            row.parentNode.removeChild(row);
+            saveTableToLocalStorage();  // Save data after deleting an item
+        }
+
+        function addColumn() {
+            const columnName = document.getElementById("columnName").value;
+
+            if (columnName === "") {
+                alert("Please enter a column name.");
+                return;
+            }
+
+            const table = document.getElementById("itemTable");
+            const headerRow = table.rows[0];
+
+            // Add new column to header
+            const newHeaderCell = document.createElement("th");
+            newHeaderCell.textContent = columnName;
+            headerRow.appendChild(newHeaderCell);
+
+            // Add input cells for existing rows
+            for (let i = 1; i < table.rows.length; i++) {
+                const newRowCell = table.rows[i].insertCell(-1);
+                newRowCell.innerHTML = `<input  style="border: none; padding: 0px; margin: 0px;" type="text" placeholder="Enter value">`;
+            }
+
+            saveTableToLocalStorage();  // Save data after adding a column
+
+            document.getElementById("columnName").value = "";
+        }
+
+        function deleteColumn() {
+            const table = document.getElementById("itemTable");
+            const columnCount = table.rows[0].cells.length;
+
+            if (columnCount > 3) {
+                for (let i = 0; i < table.rows.length; i++) {
+                    table.rows[i].deleteCell(-1);
+                }
+                saveTableToLocalStorage();  // Save data after deleting a column
+            } else {
+                alert("Cannot delete default columns.");
+            }
+        }
+
+        function saveTableToLocalStorage() {
+            const table = document.getElementById("itemTable");
+            const rows = [];
+            for (let i = 1; i < table.rows.length; i++) {
+                const cells = table.rows[i].cells;
+                const rowData = [];
+                for (let j = 0; j < cells.length - 1; j++) {  // Exclude Action column
+                    const cell = cells[j].querySelector("input") ? cells[j].querySelector("input").value : cells[j].textContent;
+                    rowData.push(cell);
+                }
+                rows.push(rowData);
+            }
+            localStorage.setItem('purchaseList', JSON.stringify(rows));
+        }
+
+        function loadTableFromLocalStorage() {
+            const savedRows = JSON.parse(localStorage.getItem('purchaseList') || '[]');
+            const table = document.getElementById("itemTable").getElementsByTagName("tbody")[0];
+
+            savedRows.forEach(rowData => {
+                const newRow = table.insertRow();
+                rowData.forEach((cellData, index) => {
+                    const newCell = newRow.insertCell(index);
+                    if (index >= 2) {  // Input fields for additional columns
+                        newCell.innerHTML = `<input type="text" value="${cellData}" placeholder="Enter value">`;
+                    } else {
+                        newCell.textContent = cellData;
+                    }
+                });
+
+                const actionCell = newRow.insertCell(-1);
+                actionCell.innerHTML = '<button onclick="deleteRow(this)">Delete</button>';
+            });
+        }
+
+        function printTable() {
+            const table = document.getElementById("itemTable");
+
+            // Hide the "Action" column before printing
+            const actionCells = document.querySelectorAll("#itemTable th:nth-child(3), #itemTable td:nth-child(3)");
+            actionCells.forEach(cell => {
+                cell.style.display = 'none';
+            });
+
+            // Print the table
+            window.print();
+
+            // Restore the "Action" column after printing
+            actionCells.forEach(cell => {
+                cell.style.display = '';
+            });
+        }
+        function deleteAllRowsAndColumns() {
+            const table = document.getElementById("itemTable");
+            
+            // Remove all rows except the header
+            const rowCount = table.rows.length;
+            for (let i = rowCount - 1; i > 0; i--) {
+                table.deleteRow(i);
+            }
+
+            // Remove all columns except the default ones (Item Name, Quantity, Action)
+            const columnCount = table.rows[0].cells.length;
+            for (let i = columnCount - 1; i > 2; i--) {
+                for (let j = 0; j < table.rows.length; j++) {
+                    table.rows[j].deleteCell(i);
+                }
+            }
+        }
+
+    </script>
+
+</body>
+</html>
